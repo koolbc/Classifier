@@ -1,0 +1,105 @@
+```{r}
+options(java.parameters = "-Xmx10g")
+library(bartMachine)
+library(caTools)
+set.seed(123)
+```
+
+```{r}
+#Import the input matrices.
+Pro_csv <- read.csv("C:/Users/melod/Desktop/RongRong/Dry/WGCNA/Pro_Re/Pro_top2000_matrix.csv" , header = TRUE, row.names=1)
+Re_csv  <- read.csv("C:/Users/melod/Desktop/RongRong/Dry/WGCNA/Pro_Re/Re_top2000_matrix.csv" , header = TRUE, row.names=1)
+```
+
+```{r}
+inter_gene <- Reduce(intersect, list(row.names(Pro_csv),
+                                     row.names(Re_csv)))
+```
+
+```{r}
+Pro_inter <- t(Pro_csv[inter_gene, ])
+Pro_inter <- as.data.frame(Pro_inter)
+Pro_inter$condition <- 0
+```
+
+```{r}
+Re_inter <- t(Re_csv[inter_gene, ])
+Re_inter <- as.data.frame(Re_inter)
+Re_inter$condition <- 1
+```
+
+```{r}
+data_inter_all <- rbind(Pro_inter, Re_inter)
+```
+
+```{r}
+X = data_inter_all[, -ncol(data_inter_all)]
+Y = data_inter_all$condition
+```
+
+```{r}
+split = sample.split(Y, SplitRatio = 0.7)
+```
+
+```{r}
+X_train = X[split, ]
+Y_train = Y[split]
+X_test = X[!split, ]
+Y_test = Y[!split]
+```
+
+```{r}
+set_bart_machine_num_cores(4)  
+bart_machine = bartMachine(X_train, Y_train)
+```
+
+```{r}
+predictions = predict(bart_machine, X_test)
+```
+
+```{r}
+print(predictions)
+actuals = Y_test
+print(actuals)
+```
+
+```{r}
+library(pROC)
+library(caret)
+```
+
+```{r}
+# Compute variable importance
+var_importance <- investigate_var_importance(bart_machine)
+```
+
+```{r}
+
+avg_var_importance <- var_importance$avg_var_props
+
+
+avg_var_importance_df <- as.data.frame(avg_var_importance)
+
+
+avg_var_importance_df$feature <- rownames(avg_var_importance_df)
+
+
+names(avg_var_importance_df) <- c("importance", "feature")
+
+
+avg_var_importance_df_sorted <- avg_var_importance_df[order(avg_var_importance_df$importance, decreasing = TRUE), ]
+
+
+top_40_features <- avg_var_importance_df_sorted[1:40, ]
+```
+
+```{r}
+write.csv(top_40_features , file = "C:/Users/melod/Desktop/RongRong/Dry/BART/top40.csv" , row.names = T)
+```
+
+```{r}
+write.csv(Y_test, file = "C:/Users/melod/Desktop/RongRong/Dry/BART/Y_test.csv")
+
+write.csv(predictions, file = "C:/Users/melod/Desktop/RongRong/Dry/BART/predictions.csv")
+```
+
